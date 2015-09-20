@@ -1,0 +1,65 @@
+on init
+    write /sys/module/intel_mid/parameters/force_cold_boot 1
+
+    # adb shell needs /system/bin/sh
+    mkdir   /system/bin
+    symlink /sbin/sh /system/bin/sh
+
+    start partlink
+
+service partlink /sbin/partlink
+    oneshot
+
+on fs
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/idVendor 8087
+    write /sys/class/android_usb/android0/idProduct 09fc
+    write /sys/class/android_usb/android0/f_ffs/aliases adb
+    write /sys/class/android_usb/android0/functions mtp,adb
+    write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
+    write /sys/class/android_usb/android0/iProduct ${ro.product.model}
+    write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+
+on property:sys.storage.ums_enabled=1
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/functions mass_storage,adb
+    write /sys/class/android_usb/android0/enable 1
+
+on property:sys.storage.ums_enabled=0
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/functions ${sys.usb.config}
+    write /sys/class/android_usb/android0/enable ${service.adb.root}
+
+on property:sys.usb.config=none
+    stop adbd
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/bDeviceClass 0
+
+on property:sys.usb.config=mtp,adb
+    stop adbd
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/functions mtp,adb
+    write /sys/class/android_usb/android0/enable 1
+    start adbd
+
+on property:sys.usb.config=adb
+    stop adbd
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/functions adb
+    write /sys/class/android_usb/android0/enable ${service.adb.root}
+    start adbd
+
+on boot
+# Set unsecure wipe mode
+    setprop ro.g_wipe_flag 2
+
+    setprop_from_sysfs /sys/firmware/pidv/iafw_version sys.ia32.version
+    setprop_from_sysfs /sys/class/dmi/id/bios_version sys.ifwi.version
+    setprop_from_sysfs /sys/firmware/pidv/secfw_version sys.chaabi.version
+    setprop_from_sysfs /sys/firmware/pidv/pdr_version sys.pdr.version
+
+    start intel_fw_props
+
+service intel_fw_props /sbin/intel_fw_props
+    oneshot
+
