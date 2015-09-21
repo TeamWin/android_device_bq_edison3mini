@@ -1,1 +1,1 @@
-add_lunch_combo omni_edison3mini-eng
+add_lunch_combo cm_edison3mini-eng
